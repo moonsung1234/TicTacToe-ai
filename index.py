@@ -1,4 +1,9 @@
-from gui import Gui
+from threading import Thread
+from game import Game
+from core import Core
 
-interface = Gui(500, 500)
-interface.start()
+interface = Game(3, 3)
+learner = Core(interface)
+
+interface.setTable(1, 2, 0)
+learner.learn()
