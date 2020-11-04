@@ -5,5 +5,9 @@ from core import Core
 interface = Game(3, 3)
 learner = Core(interface)
 
-interface.setTable(1, 2, 0)
-learner.learn()
+def learnByCore() :
+    interface.setTable(1, 2, 0)
+    learner.learn(27)
+
+core1 = Thread(target=learnByCore)
+core1.start()

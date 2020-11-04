@@ -17,6 +17,21 @@ class Game :
     def getTable(self) :
         return self.table
 
+    def check(self, player, index) :
+        i, j, tmp_index = 0, 0, index
+
+        while tmp_index >= 3 :
+            tmp_index -= 3
+            i += 1
+
+        j = tmp_index
+
+        if self.table[i, 0] == self.table[i, 1] == self.table[i, 2] :
+            return True
+
+        elif self.table[0, j] == self.table[1, j] == self.table[2, j] :
+            return True 
+
     def apply(self, player, index) :
         self.table = np.reshape(self.table, (1, 9))
         self.table[0, index] = player
