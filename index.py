@@ -1,13 +1,18 @@
 from threading import Thread
+from filem import FileManager
 from game import Game
 from core import Core
 
+fileManager = FileManager("data.json")
 interface = Game(3, 3)
-learner = Core(interface)
+learner = Core(interface, fileManager)
+
+interface.setTable(1, 2, 0)
 
 def learnByCore() :
-    interface.setTable(1, 2, 0)
-    learner.learn(27)
+    learner.learn(1)
 
 core1 = Thread(target=learnByCore)
 core1.start()
+
+
