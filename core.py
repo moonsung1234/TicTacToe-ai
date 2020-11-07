@@ -5,127 +5,121 @@ import json
 
 class Core :
     def __init__(self, interface, fileManager) :
-        self.fileManager = fileManager
         self.interface = interface
+        self.fileManager = fileManager
         self.learning_table = []
-        self.END = -999
+        self.rand_table = [0 for zero in range(self.interface.width * self.interface.height)]
+        self.DECREASE = 0.09
+        self.UNKNOWN = -9999
+        self.WIN = 1
+        self.LOSE = -1
+        self.DRAW = 0
 
-    def beGreedy(self, table) :
-        max_value = np.argmax(table)
+    def getCorrectTable(self, target_table) :
+        returned_table = [0 for zero in range(self.interface.width * self.interface.height)]
 
-        if np.reshape(table, (1, 9))[0, max_value] == self.END :
-            return None
+        if not len(self.learning_table) == 0 :
+            next_table = self.getNextTable(target_table)
 
-        return max_value
+            for n_table in next_table :
+                returned_table[n_table[0]] += self.DECREASE * n_table[1][0]
 
-    def chooseAtRandom(self, table) :
-        tmp_table = np.reshape(table, (1, 9))
-        result = random.randint(0, len(tmp_table[0]) - 1)
+            for i in range(len(returned_table)) :
+                returned_table[i] = round(returned_table[i], 2)
 
-        while True :
-            for i in range(len(tmp_table[0])) :
-                if tmp_table[0, i] == 0 :
-                    break
+            return returned_table
 
-                elif i == len(tmp_table[0]) - 1 :
-                    return None
+        return returned_table
 
-            if tmp_table[0, result] == 0 :
-                return result
+    def getCorrectIndex(self, target_correct_table) :
+        target_table = np.array(target_correct_table.copy())
+        max_index = np.argmax(target_table)
+
+        for _ in range(self.interface.width * self.interface.height) :
+            if np.reshape(self.interface.getTable(), (1, 9))[0, max_index] == 0 :
+                return max_index
 
             else :
-                result = random.randint(0, len(tmp_table[0]) - 1)
+                target_table[max_index] = self.UNKNOWN
+                max_index = np.argmax(target_table)
 
-    def getCompareValue(self, table) :
-        return np.where(table>0, self.END, table)
+        return None
 
-    def getCompareValueWithPlayer(self, player, index, table) :
-        tmp_table = np.where(table>0, self.END, table)
-        tmp_table = np.reshape(tmp_table, (1, 9))
-        tmp_table[0, index] = player
+    def getNextTable(self, target_table) :
+        returned_table = []
         
-        return np.reshape(tmp_table, (3, 3))
+        for table in self.learning_table :
+            bool_table = np.reshape(target_table == table[1], (1, 9))
+            wrong_count = 0
+            wrong_index = None
 
-    def getCorrectTable(self, player, table) :
-        if len(self.learning_table) == 0 :
-            return (np.array([[]]), self.END)
+            for i in range(len(bool_table[0])) :
+                if bool_table[0, i] == False :
+                    wrong_count += 1
+                    wrong_index = i
 
-        else :
-            tmp_table = np.reshape(table, (1, 9))
-            final_table = [self.END, np.array([[]])]
-            next_index = None
+            if wrong_count == 1 :
+                returned_table.append([wrong_index, table])
 
-            for tb in self.learning_table :
-                compared_table = np.reshape(tb[1], (1, 9))
-                compared_score = tb[0]
-                wrong_count = 0
-                tmp_index = None
+        return returned_table
 
-                for i in range(len(tmp_table[0])) :
-                    if not str(tmp_table[0, i]) == str(compared_table[0, i]) :
-                        wrong_count += 1
-                        tmp_index = i
+    def getRandomIndex(self, target_table) :
+        while True :
+            rand_int = random.randint(0, 8)
 
-                if wrong_count == 1 and compared_table[0, tmp_index] == player and tmp_table[0, tmp_index] == 0 and not compared_score == -1 :
-                    #print("\n찾은 테이블 : ", np.reshape(compared_table, (3, 3)), "\n")    
-                    
-                    if compared_score >= final_table[0] :
-                        final_table = tb 
-                        next_index = tmp_index
+            if target_table[0, rand_int] == 0 :
+                return rand_int
 
-                wrong_count = 0
+        return None
 
-            if len(final_table[1][0]) == 0 :
-                return (np.array([[]]), self.END)
+    def checkIsExist(self, target_table) :
+        wrong_count = 0
+        
+        for table in self.learning_table :
+            bool_table = np.reshape(target_table == table[1], (1, 9))
 
-            elif not next_index == None :
-                return (final_table[1], next_index)
-
-    def checkIsExist(self, table) :
-        for i in range(len(self.learning_table)) :
-            checked_table = table == self.learning_table[i][1]
-            checked_table = np.reshape(checked_table, (1, 9))
-
-            for j in range(len(checked_table[0])) :
-                if not checked_table[0, j] :
+            for i in range(len(bool_table[0])) :
+                if bool_table[0, i] == False :
+                    wrong_count += 1
                     break
 
-                elif j == len(checked_table[0]) - 1 :
+                elif i == len(bool_table[0]) - 1:
                     return True
-        
+            
         return False
 
-    def setTablesScore(self, tables, player, game_state) :
-        for i in range(len(tables)) :
+    def setSectionToTable(self, player, section_table) :
+        for i in range(len(section_table)) :
             if player == self.interface.player1 :
                 if i % 2 == 0 :
-                    tables[i][0] = game_state
+                    section_table[i][0] = self.WIN
 
                 else :
-                    tables[i][0] = -1
+                    section_table[i][0] = self.LOSE
+
+                self.learning_table.append(section_table[i])
 
             elif player == self.interface.player2 :
-                if not i == 0 and not i % 2 == 0 :
-                    tables[i][0] = game_state
+                if not i % 2 == 0 :
+                    section_table[i][0] = self.WIN
 
-                elif not i == 0 :
-                    tables[i][0] = -1
+                else :
+                    section_table[i][0] = self.LOSE
 
-            else :
-                tables[i][0] = 0
+                self.learning_table.append(section_table[i])
 
-            if not self.checkIsExist(tables[i][1]) :
-                self.learning_table.append(tables[i])
+            elif player == self.UNKNOWN :
+                section_table[i][0] = self.DRAW
+                self.learning_table.append(section_table[i])
 
     def learn(self, count) :
         for _ in range(count) :
             turned = self.interface.player1
-            check_data = self.fileManager.getFileContents()
-            match_tables = []
-            is_first_count = 0
+            section_table = []
+            file_content = self.fileManager.getFileContents()
 
-            if not len(check_data) == 0 :
-                self.learning_table = json.loads(check_data)
+            if not len(file_content) == 0 :
+                self.learning_table = json.loads(file_content)
 
                 for i in range(len(self.learning_table)) :
                     self.learning_table[i][0] = int(self.learning_table[i][0])
@@ -133,58 +127,50 @@ class Core :
 
             while True :
                 print(self.interface.getTable())
+                print(self.getCorrectTable(self.interface.getTable()), "\n")
+                print(len(self.learning_table))
+                index = self.getCorrectIndex(self.getCorrectTable(self.interface.getTable()))
 
-                tb_list = self.getCorrectTable(turned, self.interface.getTable())
-                index = None
-
-                if len(tb_list[0][0]) == 0 :
-                    index = self.chooseAtRandom(self.getCompareValue(self.interface.getTable()))
-
-                elif is_first_count == 0 :
-                    index = self.chooseAtRandom(self.getCompareValue(self.interface.getTable()))
-                    is_first_count += 1
-
-                else :
-                    index = self.beGreedy(self.getCompareValueWithPlayer(turned, tb_list[1], tb_list[0]))
+                noise = random.randint(1, 4)
 
                 if index == None :
-                    self.interface.setTable(self.interface.player1, self.interface.player2, self.interface.default_score)
-                    self.setTablesScore(match_tables, self.END, 0)
-                    print("\n무승부\n")
-
-                    break
+                    index = self.getRandomIndex(np.reshape(self.interface.getTable(), (1, 9)))
 
                 if turned == self.interface.player1 :
-                    decided = self.interface.apply(turned, index)
+                    if not noise == 1:
+                        index = self.getRandomIndex(np.reshape(self.interface.getTable(), (1, 9)))
 
-                else :
-                    #decided = self.interface.apply(turned, index)
-                    #match_tables.append([self.END, decided.copy()])
                     index = int(input())
-                    #index = self.chooseAtRandom(self.getCompareValue(self.interface.getTable()))
-                    self.interface.apply(turned, index)
 
-                match_tables.append([self.END, decided.copy()])
+                    section_table.append([self.UNKNOWN, self.interface.apply(turned, index).copy()])
+
+                elif turned == self.interface.player2 :
+                    #if noise == 1:
+                    #    index = self.getRandomIndex(np.reshape(self.interface.getTable(), (1, 9)))
+
+                    #index = int(input())
+
+                    section_table.append([self.UNKNOWN, self.interface.apply(turned, index).copy()])
 
                 if self.interface.check(turned, index) :
-                    print("\nplayer1" if turned == self.interface.player1 else "player2", " 승리 : ", self.interface.getTable(), "\n")
+                    self.setSectionToTable(turned, section_table)
+                    print("player1" if turned == self.interface.player1 else "player2", " 승리")
+                    
                     self.interface.setTable(self.interface.player1, self.interface.player2, self.interface.default_score)
-                    self.setTablesScore(match_tables, turned, 1)
-
                     break
 
-                if turned == self.interface.player1 :
-                    turned = self.interface.player2
-            
-                else :
-                    turned = self.interface.player1
+                if self.interface.checkFull() :
+                    self.setSectionToTable(self.UNKNOWN, section_table)
+                    print("무승부")
 
-                #time.sleep(2)
+                    self.interface.setTable(self.interface.player1, self.interface.player2, self.interface.default_score)
+                    break
+
+                turned = self.interface.getNextTurned(turned)
 
             for i in range(len(self.learning_table)) :
                 self.learning_table[i][1] = self.fileManager.setContentsAsArray(self.learning_table[i][1])
 
             self.fileManager.setFileContents(json.dumps(self.learning_table))
-        
-        print(len(json.loads(self.fileManager.getFileContents())))
+                
 
